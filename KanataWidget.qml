@@ -1,10 +1,11 @@
 import QtQuick
 import qs.Common
+import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
 
-// Bar pill with the live layer name. The popout browses every layer, since
-// the overlay only covers the layers you hold.
+// Bar pill with the live layer name. The popout browses every layer and has
+// the switch for the automatic overlay; right-clicking the pill flips it too.
 PluginComponent {
     id: root
 
@@ -29,10 +30,24 @@ PluginComponent {
     }
 
     PluginGlobalVar {
+        id: autoVar
+        varName: "autoOverlay"
+        defaultValue: true
+    }
+
+    PluginGlobalVar {
         id: addressVar
         varName: "address"
         defaultValue: ""
     }
+
+    readonly property string pillIcon: !connectedVar.value ? "keyboard_off" : autoVar.value ? "keyboard" : "keyboard_hide"
+
+    function setAutoOverlay(on) {
+        PluginService.savePluginData("kanataLayers", "autoOverlay", on);
+    }
+
+    pillRightClickAction: () => setAutoOverlay(!autoVar.value)
 
     readonly property real keyUnit: 42
     readonly property real keyGap: 4
@@ -57,7 +72,7 @@ PluginComponent {
 
             DankIcon {
                 anchors.verticalCenter: parent.verticalCenter
-                name: connectedVar.value ? "keyboard" : "keyboard_off"
+                name: root.pillIcon
                 size: root.iconSize
                 color: connectedVar.value ? Theme.surfaceText : Theme.surfaceVariantText
             }
@@ -78,7 +93,7 @@ PluginComponent {
 
             DankIcon {
                 anchors.horizontalCenter: parent.horizontalCenter
-                name: connectedVar.value ? "keyboard" : "keyboard_off"
+                name: root.pillIcon
                 size: root.iconSize
                 color: connectedVar.value ? Theme.surfaceText : Theme.surfaceVariantText
             }
@@ -107,6 +122,13 @@ PluginComponent {
                 width: parent.width
                 spacing: Theme.spacingM
                 visible: keymapVar.value !== null
+
+                DankToggle {
+                    width: parent.width
+                    text: "Show overlay when holding a layer"
+                    checked: autoVar.value
+                    onToggled: checked => root.setAutoOverlay(checked)
+                }
 
                 Row {
                     spacing: Theme.spacingS
@@ -151,5 +173,5 @@ PluginComponent {
     }
 
     popoutWidth: keymapWidth + Theme.spacingL * 2
-    popoutHeight: keymapHeight + 200
+    popoutHeight: keymapHeight + 250
 }

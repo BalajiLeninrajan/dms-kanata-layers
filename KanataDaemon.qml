@@ -20,6 +20,7 @@ Item {
     readonly property string address: settings.address || "127.0.0.1:5829"
     readonly property var overlayLayers: (settings.overlayLayers ?? "").split(",").map(s => s.trim()).filter(s => s)
     readonly property int showDelay: parseInt(settings.showDelay) || 250
+    readonly property bool autoOverlay: settings.autoOverlay ?? true
 
     property string currentLayer: ""
     property bool connected: false
@@ -28,7 +29,7 @@ Item {
 
     // With no layers configured, show every layer except the first (base).
     readonly property bool layerWantsOverlay: {
-        if (!keymap || !currentLayer)
+        if (!autoOverlay || !keymap || !currentLayer)
             return false;
         if (overlayLayers.length > 0)
             return overlayLayers.indexOf(currentLayer) >= 0;
@@ -47,7 +48,7 @@ Item {
     function loadSettings() {
         if (!pluginService)
             return;
-        const keys = ["configPath", "address", "overlayLayers", "showDelay"];
+        const keys = ["configPath", "address", "overlayLayers", "showDelay", "autoOverlay"];
         const next = {};
         for (const k of keys)
             next[k] = pluginService.loadPluginData(pluginId, k, undefined);
@@ -97,6 +98,7 @@ Item {
     onConnectedChanged: publish("connected", connected)
     onKeymapChanged: publish("keymap", keymap)
     onAddressChanged: reconnect()
+    onAutoOverlayChanged: publish("autoOverlay", autoOverlay)
 
     onOverlayShownChanged: {
         if (!overlayShown) {
@@ -119,6 +121,7 @@ Item {
     Component.onCompleted: {
         loadSettings();
         publish("address", address);
+        publish("autoOverlay", autoOverlay);
         conn.running = true;
     }
 
@@ -230,6 +233,12 @@ Item {
         function toggle(name: string): string {
             root.pinnedLayer = root.pinnedLayer ? "" : (name || root.currentLayer);
             return root.pinnedLayer ? "shown " + root.pinnedLayer : "hidden";
+        }
+
+        // Turns the overlay on layer holds on or off. toggle still works.
+        function auto(): string {
+            root.pluginService.savePluginData(root.pluginId, "autoOverlay", !root.autoOverlay);
+            return root.autoOverlay ? "auto overlay on" : "auto overlay off";
         }
 
         function reload(): string {

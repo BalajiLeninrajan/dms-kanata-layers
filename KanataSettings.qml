@@ -6,6 +6,13 @@ import qs.Modules.Plugins
 PluginSettings {
     pluginId: "kanataLayers"
 
+    ToggleSetting {
+        settingKey: "autoOverlay"
+        label: "Show overlay when holding a layer"
+        description: "Off means the overlay only appears through the toggle IPC command. Right-clicking the bar pill flips this."
+        defaultValue: true
+    }
+
     StringSetting {
         settingKey: "configPath"
         label: "Kanata config"

@@ -5,6 +5,7 @@ A [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) plugin f
 - Holding a layer listed in the settings shows an overlay at the bottom of the screen after a short delay. The overlay draws the layer on your `defsrc` rows, with tap-hold keys showing both sides and chord combos listed underneath.
 - The overlay fades once you press a key, so it stays out of the way while you use the layer. It comes back after 1.5 seconds without a keypress.
 - The bar pill shows the current layer. Clicking it opens a popout where you can browse every layer.
+- The overlay on layer holds can be switched off. Right-click the pill, use the switch in its popout, or run `dms ipc call kanataLayers auto`. With it off, `toggle` still shows the overlay on demand.
 - The keymap comes from your `.kbd` file, so it stays in sync with your config. The plugin re-reads the file when it changes or when kanata reports a reload.
 
 ## Setup
@@ -25,6 +26,7 @@ git clone https://github.com/BalajiLeninrajan/dms-kanata-layers ~/.config/DankMa
 
 | Setting | Default | |
 |---|---|---|
+| Show overlay when holding a layer | on | Same switch as the pill's right-click |
 | Kanata config | `~/.config/kanata/kanata.kbd` | The file the keymap is read from |
 | Kanata TCP address | `127.0.0.1:5829` | Must match `--port` |
 | Overlay layers | every layer but the first | Comma-separated, e.g. `util, nav` |
@@ -35,6 +37,7 @@ git clone https://github.com/BalajiLeninrajan/dms-kanata-layers ~/.config/DankMa
 ```sh
 dms ipc call kanataLayers layer          # print the active layer
 dms ipc call kanataLayers toggle util    # pin the overlay open on a layer, again to hide
+dms ipc call kanataLayers auto           # turn the overlay on layer holds on or off
 dms ipc call kanataLayers reload         # re-read the config and reconnect
 ```
 
