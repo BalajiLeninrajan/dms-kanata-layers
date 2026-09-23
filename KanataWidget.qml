@@ -1,48 +1,48 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.Common
 import qs.Widgets
 import qs.Modules.Plugins
+import "kbd.js" as Kbd
 
-// Bar pill with the live layer name. The popout browses every layer's keymap.
+// Bar pill that opens a popout of every layer in your kanata config.
 PluginComponent {
     id: root
 
     layerNamespacePlugin: "kanata-layers"
 
-    PluginGlobalVar {
-        id: layerVar
-        varName: "layer"
-        defaultValue: ""
+    readonly property string configPath: {
+        const path = pluginData.configPath || "~/.config/kanata/kanata.kbd";
+        return path.startsWith("~/") ? Quickshell.env("HOME") + path.slice(1) : path;
     }
+    property var keymap: null
 
-    PluginGlobalVar {
-        id: connectedVar
-        varName: "connected"
-        defaultValue: false
+    FileView {
+        path: root.configPath
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                root.keymap = Kbd.parse(text());
+            } catch (e) {
+                console.warn("kanataLayers: could not parse", root.configPath + ":", e.message);
+                root.keymap = null;
+            }
+        }
+        onLoadFailed: err => {
+            console.warn("kanataLayers: could not read", root.configPath, err);
+            root.keymap = null;
+        }
     }
-
-    PluginGlobalVar {
-        id: keymapVar
-        varName: "keymap"
-        defaultValue: null
-    }
-
-    PluginGlobalVar {
-        id: addressVar
-        varName: "address"
-        defaultValue: ""
-    }
-
-    readonly property string pillIcon: connectedVar.value ? "keyboard" : "keyboard_off"
 
     readonly property real keyUnit: 42
     readonly property real keyGap: 4
     readonly property real keymapWidth: {
-        const km = keymapVar.value;
-        if (!km)
+        if (!keymap)
             return 400;
         let widest = 0;
-        for (const row of km.rows) {
+        for (const row of keymap.rows) {
             let w = 0;
             for (const k of row)
                 w += keyUnit * k.units + keyGap * k.units;
@@ -50,47 +50,21 @@ PluginComponent {
         }
         return widest;
     }
-    readonly property real keymapHeight: keymapVar.value ? keymapVar.value.rows.length * (keyUnit + keyGap) : 200
+    readonly property real keymapHeight: keymap ? keymap.rows.length * (keyUnit + keyGap) : 200
 
     horizontalBarPill: Component {
-        Row {
-            spacing: Theme.spacingXS
-
-            DankIcon {
-                anchors.verticalCenter: parent.verticalCenter
-                name: root.pillIcon
-                size: root.iconSize
-                color: connectedVar.value ? Theme.surfaceText : Theme.surfaceVariantText
-            }
-
-            StyledText {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: connectedVar.value
-                text: layerVar.value
-                color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeMedium
-            }
+        DankIcon {
+            name: "keyboard"
+            size: root.iconSize
+            color: Theme.surfaceText
         }
     }
 
     verticalBarPill: Component {
-        Column {
-            spacing: Theme.spacingXS
-
-            DankIcon {
-                anchors.horizontalCenter: parent.horizontalCenter
-                name: root.pillIcon
-                size: root.iconSize
-                color: connectedVar.value ? Theme.surfaceText : Theme.surfaceVariantText
-            }
-
-            StyledText {
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: connectedVar.value
-                text: layerVar.value.slice(0, 3)
-                color: Theme.surfaceText
-                font.pixelSize: Theme.fontSizeSmall
-            }
+        DankIcon {
+            name: "keyboard"
+            size: root.iconSize
+            color: Theme.surfaceText
         }
     }
 
@@ -98,22 +72,22 @@ PluginComponent {
         PopoutComponent {
             id: popout
 
-            property string selected: layerVar.value || (keymapVar.value ? keymapVar.value.layerNames[0] : "")
+            property string selected: root.keymap ? root.keymap.layerNames[0] : ""
 
             headerText: "Kanata layers"
-            detailsText: !connectedVar.value ? "Not connected to kanata at " + addressVar.value + ". Is it running with --port?" : !keymapVar.value ? "Could not read the kanata config. Check the path in the plugin settings." : ""
+            detailsText: root.keymap ? "" : "Could not read " + root.configPath + ". Check the path in the plugin settings."
             showCloseButton: true
 
             Column {
                 width: parent.width
                 spacing: Theme.spacingM
-                visible: keymapVar.value !== null
+                visible: root.keymap !== null
 
                 Row {
                     spacing: Theme.spacingS
 
                     Repeater {
-                        model: keymapVar.value ? keymapVar.value.layerNames : []
+                        model: root.keymap ? root.keymap.layerNames : []
 
                         StyledRect {
                             required property string modelData
@@ -127,7 +101,7 @@ PluginComponent {
                             StyledText {
                                 id: chipText
                                 anchors.centerIn: parent
-                                text: modelData + (modelData === layerVar.value ? " •" : "")
+                                text: modelData
                                 color: parent.isSelected ? Theme.primaryText : Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeSmall
                             }
@@ -142,7 +116,7 @@ PluginComponent {
                 }
 
                 KeymapView {
-                    keymap: keymapVar.value
+                    keymap: root.keymap
                     layerName: popout.selected
                     unit: root.keyUnit
                     gap: root.keyGap

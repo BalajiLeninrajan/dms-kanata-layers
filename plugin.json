@@ -1,20 +1,16 @@
 {
     "id": "kanataLayers",
     "name": "Kanata Layers",
-    "description": "Shows the active kanata layer in the bar, with a popout of every layer's keymap",
-    "version": "0.2.0",
+    "description": "A bar button that shows every layer of your kanata config as a keymap",
+    "version": "0.3.0",
     "license": "MIT",
     "author": "Balaji Leninrajan",
     "icon": "keyboard",
-    "type": "composite",
-    "capabilities": ["daemon", "dankbar-widget"],
-    "components": {
-        "daemon": "./KanataDaemon.qml",
-        "widget": "./KanataWidget.qml"
-    },
+    "type": "widget",
+    "capabilities": ["dankbar-widget"],
+    "component": "./KanataWidget.qml",
     "settings": "./KanataSettings.qml",
     "requires_dms": ">=1.5.0",
-    "requires": ["kanata", "bash"],
     "permissions": [
         "settings_read",
         "settings_write"
