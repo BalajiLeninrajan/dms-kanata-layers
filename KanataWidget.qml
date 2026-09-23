@@ -1,11 +1,9 @@
 import QtQuick
 import qs.Common
-import qs.Services
 import qs.Widgets
 import qs.Modules.Plugins
 
-// Bar pill with the live layer name. The popout browses every layer and has
-// the switch for the automatic overlay; right-clicking the pill flips it too.
+// Bar pill with the live layer name. The popout browses every layer's keymap.
 PluginComponent {
     id: root
 
@@ -30,24 +28,12 @@ PluginComponent {
     }
 
     PluginGlobalVar {
-        id: autoVar
-        varName: "autoOverlay"
-        defaultValue: true
-    }
-
-    PluginGlobalVar {
         id: addressVar
         varName: "address"
         defaultValue: ""
     }
 
-    readonly property string pillIcon: !connectedVar.value ? "keyboard_off" : autoVar.value ? "keyboard" : "keyboard_hide"
-
-    function setAutoOverlay(on) {
-        PluginService.savePluginData("kanataLayers", "autoOverlay", on);
-    }
-
-    pillRightClickAction: () => setAutoOverlay(!autoVar.value)
+    readonly property string pillIcon: connectedVar.value ? "keyboard" : "keyboard_off"
 
     readonly property real keyUnit: 42
     readonly property real keyGap: 4
@@ -123,13 +109,6 @@ PluginComponent {
                 spacing: Theme.spacingM
                 visible: keymapVar.value !== null
 
-                DankToggle {
-                    width: parent.width
-                    text: "Show overlay when holding a layer"
-                    checked: autoVar.value
-                    onToggled: checked => root.setAutoOverlay(checked)
-                }
-
                 Row {
                     spacing: Theme.spacingS
 
@@ -173,5 +152,5 @@ PluginComponent {
     }
 
     popoutWidth: keymapWidth + Theme.spacingL * 2
-    popoutHeight: keymapHeight + 250
+    popoutHeight: keymapHeight + 200
 }

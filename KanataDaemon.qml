@@ -1,14 +1,11 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
-import qs.Common
 import qs.Services
-import qs.Widgets
 import "kbd.js" as Kbd
 
-// Owns the connection to kanata's TCP server and the parsed config, publishes
-// both as plugin global vars for the bar widget, and draws the overlay.
+// Owns the connection to kanata's TCP server and the parsed config, and
+// publishes both as plugin global vars for the bar widget.
 Item {
     id: root
 
@@ -18,28 +15,10 @@ Item {
     property var settings: ({})
     readonly property string configPath: expandHome(settings.configPath || "~/.config/kanata/kanata.kbd")
     readonly property string address: settings.address || "127.0.0.1:5829"
-    readonly property var overlayLayers: (settings.overlayLayers ?? "").split(",").map(s => s.trim()).filter(s => s)
-    readonly property int showDelay: parseInt(settings.showDelay) || 250
-    readonly property bool autoOverlay: settings.autoOverlay ?? true
 
     property string currentLayer: ""
     property bool connected: false
     property var keymap: null
-    property string pinnedLayer: ""
-
-    // With no layers configured, show every layer except the first (base).
-    readonly property bool layerWantsOverlay: {
-        if (!autoOverlay || !keymap || !currentLayer)
-            return false;
-        if (overlayLayers.length > 0)
-            return overlayLayers.indexOf(currentLayer) >= 0;
-        return keymap.layerNames.indexOf(currentLayer) > 0;
-    }
-    readonly property string overlayLayer: pinnedLayer || (layerWantsOverlay ? currentLayer : "")
-    property bool overlayShown: false
-    // Set by keypresses while the overlay is up; fades the overlay so it stops
-    // covering whatever you're doing with the layer. Clears after a pause.
-    property bool typing: false
 
     function expandHome(path) {
         return path.startsWith("~/") ? Quickshell.env("HOME") + path.slice(1) : path;
@@ -48,7 +27,7 @@ Item {
     function loadSettings() {
         if (!pluginService)
             return;
-        const keys = ["configPath", "address", "overlayLayers", "showDelay", "autoOverlay"];
+        const keys = ["configPath", "address"];
         const next = {};
         for (const k of keys)
             next[k] = pluginService.loadPluginData(pluginId, k, undefined);
@@ -97,31 +76,14 @@ Item {
     onCurrentLayerChanged: publish("layer", currentLayer)
     onConnectedChanged: publish("connected", connected)
     onKeymapChanged: publish("keymap", keymap)
-    onAddressChanged: reconnect()
-    onAutoOverlayChanged: publish("autoOverlay", autoOverlay)
-
-    onOverlayShownChanged: {
-        if (!overlayShown) {
-            idleTimer.stop();
-            typing = false;
-        }
-    }
-
-    onOverlayLayerChanged: {
-        if (!overlayLayer) {
-            showTimer.stop();
-            overlayShown = false;
-        } else if (pinnedLayer) {
-            overlayShown = true;
-        } else if (!overlayShown) {
-            showTimer.restart();
-        }
+    onAddressChanged: {
+        publish("address", address);
+        reconnect();
     }
 
     Component.onCompleted: {
         loadSettings();
         publish("address", address);
-        publish("autoOverlay", autoOverlay);
         conn.running = true;
     }
 
@@ -170,45 +132,6 @@ Item {
         }
     }
 
-    Timer {
-        id: showTimer
-        interval: root.showDelay
-        onTriggered: root.overlayShown = root.overlayLayer !== ""
-    }
-
-    // Kanata swallows the physical keyboard, so keypresses are read off its
-    // virtual output device instead. This only runs while the overlay is up,
-    // and awk passes on key-down events without the key codes. od prints each
-    // 24-byte input_event as 12 u16s: field 9 is the type (1 = EV_KEY) and
-    // field 11 the low half of the value (1 = press).
-    Process {
-        id: keyWatch
-
-        running: root.overlayShown
-        command: ["bash", "-c", `
-            dev=$(awk '/^N: Name="kanata"/ { f = 1 } f && /^H: / { for (i = 1; i <= NF; i++) if ($i ~ /^event/) { print $i; exit } }' /proc/bus/input/devices)
-            [ -n "$dev" ] || exit 1
-            # Stopping the Process only signals bash, which would orphan the
-            # pipeline and leave od reading the keyboard.
-            trap 'pkill -P $$; exit' TERM INT HUP
-            stdbuf -oL od -An -v -w24 -tu2 "/dev/input/$dev" | awk '$9 == 1 && $11 == 1 { print "press"; fflush() }' &
-            wait
-        `]
-
-        stdout: SplitParser {
-            onRead: {
-                root.typing = true;
-                idleTimer.restart();
-            }
-        }
-    }
-
-    Timer {
-        id: idleTimer
-        interval: 1500
-        onTriggered: root.typing = false
-    }
-
     FileView {
         id: configFile
         path: root.configPath
@@ -228,85 +151,10 @@ Item {
             return root.currentLayer;
         }
 
-        // Pins the overlay open on a layer (or the live one when empty), so a
-        // compositor bind can peek at any layer without holding it.
-        function toggle(name: string): string {
-            root.pinnedLayer = root.pinnedLayer ? "" : (name || root.currentLayer);
-            return root.pinnedLayer ? "shown " + root.pinnedLayer : "hidden";
-        }
-
-        // Turns the overlay on layer holds on or off. toggle still works.
-        function auto(): string {
-            root.pluginService.savePluginData(root.pluginId, "autoOverlay", !root.autoOverlay);
-            return root.autoOverlay ? "auto overlay on" : "auto overlay off";
-        }
-
         function reload(): string {
             configFile.reload();
             root.reconnect();
             return "reloaded";
-        }
-    }
-
-    Variants {
-        model: Quickshell.screens
-
-        PanelWindow {
-            required property var modelData
-
-            screen: modelData
-            visible: root.overlayShown && root.keymap !== null
-            color: "transparent"
-
-            WlrLayershell.namespace: "dms:plugins:kanataLayers"
-            WlrLayershell.layer: WlrLayershell.Overlay
-            WlrLayershell.exclusiveZone: -1
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-
-            anchors.bottom: true
-            margins.bottom: Theme.spacingL * 4
-
-            implicitWidth: card.width
-            implicitHeight: card.height
-
-            // Empty input region: clicks go through to whatever is underneath.
-            mask: Region {}
-
-            Rectangle {
-                id: card
-
-                width: content.implicitWidth + Theme.spacingL * 2
-                height: content.implicitHeight + Theme.spacingL * 2
-                radius: Theme.cornerRadius
-                color: Theme.withAlpha(Theme.surfaceContainer, 1)
-                border.width: 1
-                border.color: Theme.outlineMedium
-                opacity: root.typing ? 0.15 : 1
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.shortDuration
-                    }
-                }
-
-                Column {
-                    id: content
-                    anchors.centerIn: parent
-                    spacing: Theme.spacingS
-
-                    StyledText {
-                        text: root.overlayLayer
-                        color: Theme.primary
-                        font.pixelSize: Theme.fontSizeLarge
-                        font.weight: Font.Bold
-                    }
-
-                    KeymapView {
-                        keymap: root.keymap
-                        layerName: root.overlayLayer
-                    }
-                }
-            }
         }
     }
 }

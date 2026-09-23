@@ -1,8 +1,8 @@
 {
     "id": "kanataLayers",
     "name": "Kanata Layers",
-    "description": "Shows the active kanata layer in the bar and pops up its keymap while the layer is held",
-    "version": "0.1.0",
+    "description": "Shows the active kanata layer in the bar, with a popout of every layer's keymap",
+    "version": "0.2.0",
     "license": "MIT",
     "author": "Balaji Leninrajan",
     "icon": "keyboard",
