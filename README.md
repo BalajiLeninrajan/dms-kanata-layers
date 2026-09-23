@@ -47,5 +47,5 @@ Mod+Slash { spawn "dms" "ipc" "call" "kanataLayers" "toggle" ""; }
 ## Limits
 
 - Quickshell sockets only support Unix sockets, so the plugin connects through bash's `/dev/tcp`. That's why bash is a requirement.
-- Kanata grabs the keyboard, so the fade reads keypresses from kanata's virtual output device. Your user needs read access to it (usually the `input` group, which kanata already needs). The watcher only runs while the overlay is up and only sees key-down events, not which key.
+- Kanata grabs the keyboard, so the fade reads keypresses from kanata's virtual output device. Your user needs read access to it (usually the `input` group, which kanata already needs). The watcher only runs while the overlay is up, and it drops everything except key-down events before they reach QML, so the plugin never learns which key you pressed.
 - The parser handles `defsrc`, `deflayer`, `deflayermap`, `defalias`, `defchords`, the `tap-hold` family, layer actions, `multi`, and `unicode`. Anything else shows its action name. It doesn't expand `include` files or `defvar` values.
