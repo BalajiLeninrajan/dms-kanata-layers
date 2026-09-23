@@ -36,6 +36,9 @@ Item {
     }
     readonly property string overlayLayer: pinnedLayer || (layerWantsOverlay ? currentLayer : "")
     property bool overlayShown: false
+    // Set on the first keypress while the overlay is up; fades the overlay so
+    // it stops covering whatever you're doing with the layer.
+    property bool typing: false
 
     function expandHome(path) {
         return path.startsWith("~/") ? Quickshell.env("HOME") + path.slice(1) : path;
@@ -94,6 +97,11 @@ Item {
     onConnectedChanged: publish("connected", connected)
     onKeymapChanged: publish("keymap", keymap)
     onAddressChanged: reconnect()
+
+    onOverlayShownChanged: {
+        if (!overlayShown)
+            typing = false;
+    }
 
     onOverlayLayerChanged: {
         if (!overlayLayer) {
@@ -163,6 +171,30 @@ Item {
         onTriggered: root.overlayShown = root.overlayLayer !== ""
     }
 
+    // Kanata swallows the physical keyboard, so keypresses are read off its
+    // virtual output device instead. This only runs while the overlay is up,
+    // and awk passes on key-down events without the key codes. od prints each
+    // 24-byte input_event as 12 u16s: field 9 is the type (1 = EV_KEY) and
+    // field 11 the low half of the value (1 = press).
+    Process {
+        id: keyWatch
+
+        running: root.overlayShown
+        command: ["bash", "-c", `
+            dev=$(awk '/^N: Name="kanata"/ { f = 1 } f && /^H: / { for (i = 1; i <= NF; i++) if ($i ~ /^event/) { print $i; exit } }' /proc/bus/input/devices)
+            [ -n "$dev" ] || exit 1
+            # Stopping the Process only signals bash, which would orphan the
+            # pipeline and leave od reading the keyboard.
+            trap 'pkill -P $$; exit' TERM INT HUP
+            stdbuf -oL od -An -v -w24 -tu2 "/dev/input/$dev" | awk '$9 == 1 && $11 == 1 { print "press"; fflush() }' &
+            wait
+        `]
+
+        stdout: SplitParser {
+            onRead: root.typing = true
+        }
+    }
+
     FileView {
         id: configFile
         path: root.configPath
@@ -229,6 +261,13 @@ Item {
                 color: Theme.withAlpha(Theme.surfaceContainer, 1)
                 border.width: 1
                 border.color: Theme.outlineMedium
+                opacity: root.typing ? 0.15 : 1
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.shortDuration
+                    }
+                }
 
                 Column {
                     id: content

@@ -3,6 +3,7 @@
 A [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) plugin for [kanata](https://github.com/jtroo/kanata). It shows the active layer in the bar and pops up that layer's keymap while you hold it.
 
 - Holding a layer listed in the settings shows an overlay at the bottom of the screen after a short delay. The overlay draws the layer on your `defsrc` rows, with tap-hold keys showing both sides and chord combos listed underneath.
+- The overlay fades once you press a key, so it stays out of the way while you use the layer. It comes back at full opacity on the next hold.
 - The bar pill shows the current layer. Clicking it opens a popout where you can browse every layer.
 - The keymap comes from your `.kbd` file, so it stays in sync with your config. The plugin re-reads the file when it changes or when kanata reports a reload.
 
@@ -46,4 +47,5 @@ Mod+Slash { spawn "dms" "ipc" "call" "kanataLayers" "toggle" ""; }
 ## Limits
 
 - Quickshell sockets only support Unix sockets, so the plugin connects through bash's `/dev/tcp`. That's why bash is a requirement.
+- Kanata grabs the keyboard, so the fade reads keypresses from kanata's virtual output device. Your user needs read access to it (usually the `input` group, which kanata already needs). The watcher only runs while the overlay is up and only sees key-down events, not which key.
 - The parser handles `defsrc`, `deflayer`, `deflayermap`, `defalias`, `defchords`, the `tap-hold` family, layer actions, `multi`, and `unicode`. Anything else shows its action name. It doesn't expand `include` files or `defvar` values.
