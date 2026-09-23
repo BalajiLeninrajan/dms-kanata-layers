@@ -3,7 +3,7 @@
 A [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) plugin for [kanata](https://github.com/jtroo/kanata). It shows the active layer in the bar and pops up that layer's keymap while you hold it.
 
 - Holding a layer listed in the settings shows an overlay at the bottom of the screen after a short delay. The overlay draws the layer on your `defsrc` rows, with tap-hold keys showing both sides and chord combos listed underneath.
-- The overlay fades once you press a key, so it stays out of the way while you use the layer. It comes back at full opacity on the next hold.
+- The overlay fades once you press a key, so it stays out of the way while you use the layer. It comes back after 1.5 seconds without a keypress.
 - The bar pill shows the current layer. Clicking it opens a popout where you can browse every layer.
 - The keymap comes from your `.kbd` file, so it stays in sync with your config. The plugin re-reads the file when it changes or when kanata reports a reload.
 

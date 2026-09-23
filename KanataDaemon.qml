@@ -36,8 +36,8 @@ Item {
     }
     readonly property string overlayLayer: pinnedLayer || (layerWantsOverlay ? currentLayer : "")
     property bool overlayShown: false
-    // Set on the first keypress while the overlay is up; fades the overlay so
-    // it stops covering whatever you're doing with the layer.
+    // Set by keypresses while the overlay is up; fades the overlay so it stops
+    // covering whatever you're doing with the layer. Clears after a pause.
     property bool typing: false
 
     function expandHome(path) {
@@ -99,8 +99,10 @@ Item {
     onAddressChanged: reconnect()
 
     onOverlayShownChanged: {
-        if (!overlayShown)
+        if (!overlayShown) {
+            idleTimer.stop();
             typing = false;
+        }
     }
 
     onOverlayLayerChanged: {
@@ -191,8 +193,17 @@ Item {
         `]
 
         stdout: SplitParser {
-            onRead: root.typing = true
+            onRead: {
+                root.typing = true;
+                idleTimer.restart();
+            }
         }
+    }
+
+    Timer {
+        id: idleTimer
+        interval: 1500
+        onTriggered: root.typing = false
     }
 
     FileView {
